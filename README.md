@@ -1,70 +1,70 @@
 # VerifiWork
 
-> Marketplace micro-task (dimulai dari transkripsi audio) di mana kualitas hasil kerja dinilai oleh AI validator terhadap rubrik publik, dan pembayaran cair otomatis dari escrow — dibangun untuk **GenLayer Agent Tank**, track **Future of Work**.
+> A micro-task marketplace (starting with audio transcription) where work quality is judged by an AI validator against a public rubric, and payment releases automatically from escrow — built for **GenLayer Agent Tank**, Future of Work track.
 
-## Masalah
+## Problem
 
-Pekerja platform gig data-work (transkripsi, evaluasi AI, anotasi) menghadapi:
-- Penilaian kualitas subjektif dari satu reviewer
-- Sengketa pembayaran yang lambat dan tidak transparan
-- Reputasi yang terkunci di satu platform
+Gig platform data-workers (transcription, AI evaluation, annotation) face:
+- Subjective quality reviews from a single reviewer
+- Slow, opaque payment disputes
+- Reputation locked into a single platform
 
-## Solusi
+## Solution
 
-Intelligent Contract di GenLayer yang menjalankan siklus kerja end-to-end:
+An Intelligent Contract on GenLayer that runs the full work cycle end-to-end:
 
-1. **Requester** posting task + rubrik kualitas publik + reward (native GEN), dana masuk escrow on-chain
-2. **Worker** submit hasil kerja
-3. **Validator committee AI** (via GenLayer Equivalence Principle) menilai hasil terhadap rubrik yang didefinisikan di kode kontrak
-4. Jika **APPROVED** → reward cair otomatis ke worker
-5. Jika **REJECTED** → dana refund otomatis ke requester
+1. **Requester** posts a task + public quality rubric + reward (native GEN), funds go into on-chain escrow
+2. **Worker** submits their work
+3. **AI validator committee** (via GenLayer's Equivalence Principle) judges the submission against the rubric defined in the contract code
+4. If **APPROVED** → reward is automatically released to the worker
+5. If **REJECTED** → funds are automatically refunded to the requester
 
 ## Status
 
-✅ Contract `TranscriptionEscrow` sudah dites end-to-end di GenLayer Studio:
+✅ The `TranscriptionEscrow` contract has been tested end-to-end on GenLayer Studio:
 - `create_task` → `submit_result` → `evaluate_and_release`
-- Kedua skenario terverifikasi: REJECTED (transkrip buruk, refund ke requester) dan APPROVED (transkrip baik, payout ke worker)
+- Both scenarios verified: REJECTED (poor transcript, refund to requester) and APPROVED (good transcript, payout to worker)
 
-## Arsitektur Teknis
+## Technical Architecture
 
-Lihat [`contracts/transcription_escrow.py`](contracts/transcription_escrow.py).
+See [`contracts/transcription_escrow.py`](contracts/transcription_escrow.py).
 
-**State utama:** `requester`, `worker`, `reward`, `audio_url`, `rubric`, `transcript`, `status`, `verdict_reason`
+**Main state:** `requester`, `worker`, `reward`, `audio_url`, `rubric`, `transcript`, `status`, `verdict_reason`
 
-**Fungsi:**
-| Fungsi | Tipe | Deskripsi |
+**Functions:**
+| Function | Type | Description |
 |---|---|---|
-| `create_task(audio_url, rubric)` | write, payable | Requester membuat task, kirim reward via `gl.message.value` |
-| `submit_result(transcript_text)` | write | Worker submit hasil kerja |
-| `evaluate_and_release()` | write | AI validator menilai transkrip vs rubric (`gl.eq_principle.prompt_non_comparative`), lalu auto payout/refund via `gl.get_contract_at().emit_transfer()` |
-| `dispute()` | write | Placeholder banding (belum full diimplementasi) |
-| `get_status()`, `get_reward()`, `get_verdict_reason()`, `get_task_details()` | view | Baca status task |
+| `create_task(audio_url, rubric)` | write, payable | Requester creates the task, sends reward via `gl.message.value` |
+| `submit_result(transcript_text)` | write | Worker submits their work |
+| `evaluate_and_release()` | write | AI validator judges the transcript against the rubric (`gl.eq_principle.prompt_non_comparative`), then auto payout/refund via `gl.get_contract_at().emit_transfer()` |
+| `dispute()` | write | Appeal placeholder (not fully implemented yet) |
+| `get_status()`, `get_reward()`, `get_verdict_reason()`, `get_task_details()` | view | Read task status |
 
-**Mitigasi risiko:**
-- Input worker dibungkus sebagai `DATA_ONLY_NOT_INSTRUCTIONS` di prompt evaluasi untuk mitigasi prompt injection
-- Output evaluasi diekstrak sebagai JSON dari raw output (robust terhadap model yang menyertakan reasoning/`<think>` block sebelum JSON)
-- Rubric hanya berisi kriteria yang bisa diverifikasi dari teks transkrip (bukan perbandingan langsung ke audio asli)
+**Risk mitigations:**
+- Worker input is wrapped as `DATA_ONLY_NOT_INSTRUCTIONS` in the evaluation prompt to mitigate prompt injection
+- The evaluation output is extracted as JSON from the raw model output (robust against models that prepend a reasoning/`<think>` block before the JSON)
+- The rubric only includes criteria verifiable from the transcript text alone (not a direct comparison against the original audio)
 
-## Cara Coba
+## How to Try It
 
-1. Deploy `contracts/transcription_escrow.py` di [GenLayer Studio](https://studio.genlayer.com)
-2. Panggil `create_task` dengan `audio_url`, `rubric`, dan kirim value GEN sebagai reward
-3. Panggil `submit_result` dengan teks transkrip
-4. Panggil `evaluate_and_release` — validator AI akan menilai dan mencairkan dana otomatis
-5. Cek `get_status()` dan `get_verdict_reason()` untuk melihat hasil
+1. Deploy `contracts/transcription_escrow.py` on [GenLayer Studio](https://studio.genlayer.com)
+2. Call `create_task` with `audio_url`, `rubric`, and send GEN value as the reward
+3. Call `submit_result` with the transcript text
+4. Call `evaluate_and_release` — the AI validator will judge it and release funds automatically
+5. Check `get_status()` and `get_verdict_reason()` to see the result
 
-## Keterbatasan (MVP)
+## Limitations (MVP)
 
-- Baru mendukung 1 task aktif per contract instance (belum multi-task)
-- `dispute()` masih placeholder, belum trigger re-evaluasi committee lebih besar
-- Rubric belum bisa memverifikasi kesesuaian transkrip terhadap audio asli (validator hanya menerima teks)
-- Belum ada reputation tracker terpisah (rencana pengembangan lanjutan)
+- Only supports 1 active task per contract instance (no multi-task support yet)
+- `dispute()` is still a placeholder, doesn't yet trigger re-evaluation by a larger committee
+- The rubric can't yet verify the transcript against the original audio (validators only receive text)
+- No separate reputation tracker yet (planned for future development)
 
-## Rencana Pengembangan Lanjutan
+## Roadmap
 
-- Contract `ReputationTracker` terpisah untuk skor historis worker (portable ke platform lain)
-- Multi-task per contract (task registry)
-- Appeal path penuh dengan committee lebih besar
+- A separate `ReputationTracker` contract for worker historical scores (portable across platforms)
+- Multi-task support per contract (task registry)
+- Full appeal path with a larger committee
 
 ## Track
 
