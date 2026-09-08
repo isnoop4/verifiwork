@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VerifiWork — AI-judged escrow for gig data-work</title>
+<style>
+  :root {
+    --bg-top: #0a1220;
+    --bg-bottom: #101b30;
+    --cyan: #22d3ee;
+    --cyan-dim: #0891b2;
+    --lime: #a3e635;
+    --text: #e6f1f8;
+    --text-dim: #93a5b8;
+    --line: #1e3a52;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
+  header { text-align: center; margin-bottom: 56px; }
+  .logo {
+    width: 88px; height: 88px; margin: 0 auto 20px;
+    border-radius: 20px;
+    background: radial-gradient(circle at 30% 20%, #16324a, #0a1220);
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line);
+  }
+  .logo svg { width: 52px; height: 52px; }
+  h1 {
+    font-size: 2.4rem; margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+  .tagline {
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 18px;
+    padding: 6px 14px;
+    border: 1px solid var(--cyan-dim);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    color: var(--cyan);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.3rem;
+    color: var(--cyan);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    background: rgba(34, 211, 238, 0.04);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--cyan-dim);
+    color: #04202b;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step p { margin: 0; color: var(--text-dim); font-size: 0.95rem; }
+  .step strong { color: var(--text); }
+  .outcomes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .outcome {
+    border-radius: 12px;
+    padding: 18px;
+    border: 1px solid var(--line);
+  }
+  .outcome.approved { border-color: rgba(163, 230, 53, 0.4); background: rgba(163, 230, 53, 0.05); }
+  .outcome.rejected { border-color: rgba(255, 100, 100, 0.3); background: rgba(255, 100, 100, 0.05); }
+  .outcome .tag { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .outcome.approved .tag { color: var(--lime); }
+  .outcome.rejected .tag { color: #ff8080; }
+  .outcome p { margin: 6px 0 0; color: var(--text-dim); font-size: 0.9rem; }
+  .links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn.primary { background: var(--cyan); color: #04202b; }
+  .btn.secondary { border: 1px solid var(--line); color: var(--text); }
+  footer {
+    text-align: center;
+    margin-top: 60px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  code {
+    background: rgba(255,255,255,0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+  @media (max-width: 480px) {
+    .outcomes { grid-template-columns: 1fr; }
+    h1 { font-size: 1.9rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+        <path d="M256 108 L354 146 V246 C354 320 312 366 256 396 C200 366 158 320 158 246 V146 Z"
+              fill="none" stroke="#22d3ee" stroke-width="14" stroke-linejoin="round"/>
+        <path d="M204 250 L240 288 L316 206" fill="none" stroke="#a3e635"
+              stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>VerifiWork</h1>
+    <p class="tagline">AI-judged escrow for gig data-work — quality verified against a public rubric, payment released automatically.</p>
+    <span class="badge">GenLayer Agent Tank · Future of Work</span>
+  </header>
+
+  <section>
+    <h2>The Problem</h2>
+    <p style="color: var(--text-dim);">
+      Gig platform data-workers — transcription, AI evaluation, annotation — face subjective quality
+      reviews from a single reviewer, slow and opaque payment disputes, and reputation that's locked
+      into a single platform.
+    </p>
+  </section>
+
+  <section>
+    <h2>How It Works</h2>
+    <div class="flow">
+      <div class="step">
+        <div class="step-num">1</div>
+        <p><strong>Requester</strong> posts a task with a reward and a public quality rubric. Funds go into on-chain escrow.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <p><strong>Worker</strong> submits their work.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <p><strong>AI validator committee</strong> judges the submission against the rubric using GenLayer's Equivalence Principle.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <p>Consensus verdict releases funds automatically — no manual review, no single point of judgment.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tested End-to-End</h2>
+    <div class="outcomes">
+      <div class="outcome rejected">
+        <div class="tag">Rejected</div>
+        <p>A weak, incomplete transcript is correctly rejected. Funds are refunded to the requester automatically.</p>
+      </div>
+      <div class="outcome approved">
+        <div class="tag">Approved</div>
+        <p>A coherent, well-formed transcript is correctly approved. Funds are released to the worker automatically.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Try It</h2>
+    <p style="color: var(--text-dim);">
+      Deploy <code>contracts/transcription_escrow.py</code> on
+      <a href="https://studio.genlayer.com" style="color: var(--cyan);">GenLayer Studio</a>,
+      then call <code>create_task</code> → <code>submit_result</code> → <code>evaluate_and_release</code>.
+      Full details in the repository README.
+    </p>
+  </section>
+
+  <div class="links">
+    <a class="btn primary" href="https://github.com/isnoop4/verifiwork">View on GitHub</a>
+    <a class="btn secondary" href="https://github.com/isnoop4/verifiwork/blob/main/contracts/transcription_escrow.py">View Contract</a>
+  </div>
+
+  <footer>
+    Built for GenLayer Agent Tank — Future of Work track
+  </footer>
+
+</div>
+</body>
+</html>
