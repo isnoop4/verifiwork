@@ -232,13 +232,18 @@
   // GANTI INI DENGAN ABI KONTRAK KAMU. 
   // Kamu bisa copy ABI dari GenLayer Studio setelah deploy.
   const CONTRACT_ABI = [
-    // Contoh struktur ABI, sesuaikan dengan kontrak Python kamu!
-    "function create_task(string audio_url, string rubric) payable",
-    "function submit_result(string transcript_text)",
-    "function evaluate_and_release()",
-    "function get_status() view returns (string)",
-    "function get_verdict_reason() view returns (string)"
-  ];
+  // Write Functions
+  "function create_task(string audio_url, string rubric) payable",
+  "function submit_result(string transcript_text)",
+  "function evaluate_and_release()",
+  "function dispute()",
+  
+  // Read Functions (View)
+  "function get_reward() view returns (uint256)",
+  "function get_status() view returns (string)",
+  "function get_task_details() view returns (string, string, string, string, string, uint256)",
+  "function get_verdict_reason() view returns (string)"
+];
 
   const STUDIO_NEXT_CHAIN_ID = 61997;
   const STUDIO_NEXT_RPC = "https://studio-dev.genlayer.com/api";
