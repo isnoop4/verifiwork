@@ -69,14 +69,13 @@
     border-radius: 10px; text-decoration: none; font-size: 0.95rem;
     font-weight: 600; transition: opacity 0.15s; border: none; cursor: pointer;
   }
-  .btn:hover { opacity: 0.85; }
+  .btn:hover:not(:disabled) { opacity: 0.85; }
   .btn.primary { background: var(--cyan); color: #04202b; }
   .btn.secondary { border: 1px solid var(--line); color: var(--text); background: transparent; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   footer { text-align: center; margin-top: 60px; color: var(--text-dim); font-size: 0.85rem; }
   code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
   
-  /* Tambahan gaya untuk form interaksi */
   .interact-box {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--line);
@@ -84,6 +83,7 @@
     padding: 20px;
     margin-top: 20px;
   }
+  .interact-box h3 { margin-top: 0; font-size: 1rem; color: var(--cyan); }
   .interact-box input, .interact-box textarea {
     width: 100%;
     padding: 10px;
@@ -105,6 +105,7 @@
     font-family: monospace;
     font-size: 0.85rem;
     word-break: break-all;
+    white-space: pre-wrap;
   }
   .status-box.success { border-color: var(--lime); }
   .status-box.error { border-color: #ff8080; }
@@ -114,7 +115,6 @@
     h1 { font-size: 1.9rem; }
   }
 </style>
-<!-- Menggunakan ethers.js untuk interaksi blockchain -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 </head>
 <body>
@@ -133,10 +133,9 @@
     <p class="tagline">AI-judged escrow for gig data-work — quality verified against a public rubric, payment released automatically.</p>
     <span class="badge">GenLayer Agent Tank · Future of Work</span>
     
-    <!-- Tombol Connect Wallet -->
     <div style="margin-top: 24px;">
       <button id="connectBtn" class="btn primary">Connect Wallet</button>
-      <p id="walletStatus" style="font-size: 0.8rem; color: var(--text-dim); margin-top: 8px;">Belum terhubung</p>
+      <p id="walletStatus" style="font-size: 0.8rem; color: var(--text-dim); margin-top: 8px;">Not connected</p>
     </div>
   </header>
 
@@ -185,29 +184,29 @@
     </div>
   </section>
 
-  <!-- BAGIAN INTERAKSI KONTRAK -->
   <section>
     <h2>Try It (Live on Studio Next)</h2>
     <p style="color: var(--text-dim);">
       Interact directly with the contract deployed on <strong>GenLayer Studio Next (Chain 61997)</strong>.
+      Follow the steps in order — each button unlocks the next.
     </p>
     
     <div class="interact-box">
-      <h3 style="margin-top: 0; font-size: 1rem;">1. Create Task (Requester)</h3>
+      <h3>Step 1 · Create Task (Requester)</h3>
       <input type="text" id="audioUrl" placeholder="Audio URL (e.g., https://example.com/audio.wav)">
-      <input type="text" id="rubric" placeholder="Rubric (e.g., Transkrip harus akurat, lengkap...)">
+      <input type="text" id="rubric" placeholder="Rubric (e.g., Transcript must be accurate, complete...)">
       <input type="number" id="reward" placeholder="Reward (GEN)" value="1">
       <button id="createTaskBtn" class="btn secondary" disabled>Create Task</button>
     </div>
 
     <div class="interact-box">
-      <h3 style="margin-top: 0; font-size: 1rem;">2. Submit Result (Worker)</h3>
-      <textarea id="transcriptText" rows="4" placeholder="Paste transcript text here..."></textarea>
+      <h3>Step 2 · Submit Result (Worker)</h3>
+      <textarea id="transcriptText" rows="4" placeholder="Paste the full transcript text here..."></textarea>
       <button id="submitResultBtn" class="btn secondary" disabled>Submit Result</button>
     </div>
 
     <div class="interact-box">
-      <h3 style="margin-top: 0; font-size: 1rem;">3. Evaluate & Release (AI Validator)</h3>
+      <h3>Step 3 · Evaluate &amp; Release (AI Validator)</h3>
       <button id="evaluateBtn" class="btn primary" disabled>Evaluate and Release</button>
     </div>
 
@@ -226,24 +225,22 @@
 </div>
 
 <script>
-  // === KONFIGURASI KONTRAK ===
+  // === CONTRACT CONFIG ===
   const CONTRACT_ADDRESS = "0xDa7924bE0eD47D580fc33b9b55d6B00ce6bF9F57";
-  
-  // GANTI INI DENGAN ABI KONTRAK KAMU. 
-  // Kamu bisa copy ABI dari GenLayer Studio setelah deploy.
+
   const CONTRACT_ABI = [
-  // Write Functions
-  "function create_task(string audio_url, string rubric) payable",
-  "function submit_result(string transcript_text)",
-  "function evaluate_and_release()",
-  "function dispute()",
-  
-  // Read Functions (View)
-  "function get_reward() view returns (uint256)",
-  "function get_status() view returns (string)",
-  "function get_task_details() view returns (string, string, string, string, string, uint256)",
-  "function get_verdict_reason() view returns (string)"
-];
+    // Write Functions
+    "function create_task(string audio_url, string rubric) payable",
+    "function submit_result(string transcript_text)",
+    "function evaluate_and_release()",
+    "function dispute()",
+    
+    // Read Functions
+    "function get_reward() view returns (uint256)",
+    "function get_status() view returns (string)",
+    "function get_task_details() view returns (string, string, string, string, string, uint256)",
+    "function get_verdict_reason() view returns (string)"
+  ];
 
   const STUDIO_NEXT_CHAIN_ID = 61997;
   const STUDIO_NEXT_RPC = "https://studio-dev.genlayer.com/api";
@@ -252,7 +249,7 @@
   let signer;
   let contract;
 
-  // === KONEKSI WALLET ===
+  // === DOM ELEMENTS ===
   const connectBtn = document.getElementById('connectBtn');
   const walletStatus = document.getElementById('walletStatus');
   const createTaskBtn = document.getElementById('createTaskBtn');
@@ -260,13 +257,24 @@
   const evaluateBtn = document.getElementById('evaluateBtn');
   const outputBox = document.getElementById('outputBox');
 
+  // === UTILITY ===
+  function showOutput(msg, isError = false) {
+    outputBox.style.display = 'block';
+    outputBox.textContent = msg;
+    outputBox.className = 'status-box ' + (isError ? 'error' : 'success');
+  }
+
+  function resetOutputStyle() {
+    outputBox.style.borderColor = 'var(--cyan-dim)';
+    outputBox.className = 'status-box';
+  }
+
+  // === CONNECT WALLET ===
   connectBtn.addEventListener('click', async () => {
     if (typeof window.ethereum !== 'undefined') {
       try {
-        // Minta akses akun
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         
-        // Cek dan ganti jaringan ke Studio Next
         const chainId = await window.ethereum.request({ method: 'eth_chainId' });
         if (parseInt(chainId, 16) !== STUDIO_NEXT_CHAIN_ID) {
           try {
@@ -275,7 +283,6 @@
               params: [{ chainId: '0x' + STUDIO_NEXT_CHAIN_ID.toString(16) }],
             });
           } catch (switchError) {
-            // Jika jaringan belum ada, tambahkan
             if (switchError.code === 4902) {
               try {
                 await window.ethereum.request({
@@ -288,7 +295,7 @@
                   }],
                 });
               } catch (addError) {
-                console.error("Gagal menambahkan jaringan:", addError);
+                console.error("Failed to add network:", addError);
               }
             }
           }
@@ -299,123 +306,150 @@
         contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
         const address = await signer.getAddress();
-        walletStatus.textContent = `Terhubung: ${address.substring(0, 6)}...${address.substring(38)}`;
+        walletStatus.textContent = `Connected: ${address.substring(0, 6)}...${address.substring(38)}`;
         walletStatus.style.color = "var(--lime)";
         
-        // Aktifkan tombol interaksi
+        // Only Create Task is enabled at the start
         createTaskBtn.disabled = false;
-        submitResultBtn.disabled = false;
-        evaluateBtn.disabled = false;
+        submitResultBtn.disabled = true;
+        evaluateBtn.disabled = true;
+        
+        resetOutputStyle();
         outputBox.style.display = 'block';
-        outputBox.textContent = "Wallet terhubung! Silakan pilih interaksi.";
+        outputBox.textContent = "Wallet connected. Step 1 is ready — create a task to begin.";
         
       } catch (error) {
         console.error(error);
-        walletStatus.textContent = "Gagal terhubung.";
+        walletStatus.textContent = "Failed to connect.";
         walletStatus.style.color = "#ff8080";
       }
     } else {
-      alert("MetaMask tidak terdeteksi. Silakan install MetaMask terlebih dahulu.");
+      alert("No EVM wallet detected. Please install MetaMask, Rabby, or OKX Wallet.");
     }
   });
 
-  // === FUNGSI INTERAKSI ===
-  function showOutput(msg, isError = false) {
-    outputBox.style.display = 'block';
-    outputBox.textContent = msg;
-    outputBox.className = 'status-box ' + (isError ? 'error' : 'success');
-  }
-
+  // === STEP 1: CREATE TASK ===
   createTaskBtn.addEventListener('click', async () => {
-    const audioUrl = document.getElementById('audioUrl').value;
-    const rubric = document.getElementById('rubric').value;
-    const reward = document.getElementById('reward').value;
+    const audioUrl = document.getElementById('audioUrl').value.trim();
+    const rubric = document.getElementById('rubric').value.trim();
+    const reward = document.getElementById('reward').value.trim();
 
-    if (!audioUrl || !rubric || !reward) return showOutput("Harap isi semua kolom!", true);
+    if (!audioUrl || !rubric || !reward) {
+      return showOutput("Please fill in all fields (Audio URL, Rubric, Reward).", true);
+    }
     
     try {
-      showOutput("Menunggu konfirmasi transaksi create_task...");
+      createTaskBtn.disabled = true;
+      resetOutputStyle();
+      showOutput("Waiting for create_task confirmation in your wallet...");
+      
       const valueInWei = ethers.parseEther(reward);
       const tx = await contract.create_task(audioUrl, rubric, { value: valueInWei });
-      showOutput(`Transaksi terkirim! Hash: ${tx.hash}. Menunggu konfirmasi...`);
+      showOutput(`Transaction sent! Hash: ${tx.hash}\nWaiting for on-chain confirmation...`);
+      
       await tx.wait();
-      showOutput("Berhasil! Task telah dibuat.");
+      
+      outputBox.className = 'status-box success';
+      showOutput("Task created successfully! Step 2 unlocked — submit the worker's result.");
+      
+      submitResultBtn.disabled = false;
+      
     } catch (e) {
-      showOutput("Gagal: " + (e.reason || e.message), true);
+      resetOutputStyle();
+      showOutput("Create Task failed: " + (e.reason || e.message), true);
+      createTaskBtn.disabled = false;
     }
   });
 
+  // === STEP 2: SUBMIT RESULT ===
   submitResultBtn.addEventListener('click', async () => {
-    const transcript = document.getElementById('transcriptText').value;
-    if (!transcript) return showOutput("Harap isi transkrip!", true);
+    const transcript = document.getElementById('transcriptText').value.trim();
+    if (!transcript) {
+      return showOutput("Please paste the transcript text before submitting.", true);
+    }
 
     try {
-      showOutput("Menunggu konfirmasi transaksi submit_result...");
+      submitResultBtn.disabled = true;
+      resetOutputStyle();
+      showOutput("Waiting for submit_result confirmation in your wallet...");
+      
       const tx = await contract.submit_result(transcript);
-      showOutput(`Transaksi terkirim! Hash: ${tx.hash}. Menunggu konfirmasi...`);
+      showOutput(`Transaction sent! Hash: ${tx.hash}\nWaiting for on-chain confirmation...`);
+      
       await tx.wait();
-      showOutput("Berhasil! Hasil kerja telah disubmit.");
+      
+      outputBox.className = 'status-box success';
+      showOutput("Result submitted successfully! Step 3 unlocked — run the AI evaluation.");
+      
+      evaluateBtn.disabled = false;
+      
     } catch (e) {
-      showOutput("Gagal: " + (e.reason || e.message), true);
+      resetOutputStyle();
+      showOutput("Submit Result failed: " + (e.reason || e.message), true);
+      submitResultBtn.disabled = false;
     }
   });
 
+  // === STEP 3: EVALUATE & RELEASE ===
   evaluateBtn.addEventListener('click', async () => {
-  try {
-    showOutput("Menunggu konfirmasi transaksi evaluate_and_release...");
-    const tx = await contract.evaluate_and_release();
-    showOutput(`Transaksi terkirim! Hash: ${tx.hash}. AI Validator sedang bekerja...`);
-    
-    // Tunggu transaksi masuk ke blok (EVM receipt)
-    await tx.wait();
-    
-    // Mulai proses polling status
-    let attempts = 0;
-    const maxAttempts = 12; // Coba 12 kali (12 x 5 detik = 60 detik)
-    
-    showOutput("Menunggu hasil konsensus AI... (Status: Pending)");
-    
-    const checkStatus = async () => {
-      attempts++;
-      try {
-        const status = await contract.get_status();
-        const reason = await contract.get_verdict_reason();
-        
-        // Jika status sudah final
-        if (status.toLowerCase() === 'approved') {
-          outputBox.style.borderColor = 'var(--lime)';
-          showOutput(`✅ APPROVED!\nDana telah dirilis ke worker.\n\nStatus: ${status}\nAlasan: ${reason || '-'}`);
-          return;
-        } else if (status.toLowerCase() === 'rejected') {
-          outputBox.style.borderColor = '#ff8080';
-          showOutput(`❌ REJECTED.\nDana dikembalikan ke requester.\n\nStatus: ${status}\nAlasan: ${reason || '-'}`, true);
-          return;
-        } else {
-          // Masih diproses
-          showOutput(`Menunggu hasil konsensus AI... (Status: ${status || 'Pending'})`);
-        }
-      } catch (err) {
-        // Abaikan error CALL_EXCEPTION, anggap saja state belum siap
-        console.log(`Percobaan ${attempts}: State belum siap...`);
-        showOutput(`Menunggu hasil konsensus AI... (Attempt ${attempts}/${maxAttempts})`);
-      }
+    try {
+      evaluateBtn.disabled = true;
+      resetOutputStyle();
+      showOutput("Waiting for evaluate_and_release confirmation in your wallet...");
       
-      // Jika belum final dan masih ada sisa percobaan, lanjut polling
-      if (attempts < maxAttempts) {
-        setTimeout(checkStatus, 5000); // Cek lagi setiap 5 detik
-      } else {
-        outputBox.style.borderColor = 'var(--cyan)';
-        showOutput("Transaksi selesai dikirim, namun RPC GenLayer belum mengupdate status akhir. Silakan buka Studio Next Explorer untuk melihat hasil FINALISASI (Approved/Rejected).");
-      }
-    };
-    
-    // Mulai polling
-    checkStatus();
+      const tx = await contract.evaluate_and_release();
+      showOutput(`Transaction sent! Hash: ${tx.hash}\nAI Validator committee is working...`);
+      
+      await tx.wait();
+      
+      // Start polling for final status
+      let attempts = 0;
+      const maxAttempts = 12; // 12 × 5s = 60 seconds
+      showOutput("Awaiting AI consensus result...\n(Status: Pending)");
+      
+      const pollStatus = async () => {
+        attempts++;
+        try {
+          const status = await contract.get_status();
+          const reason = await contract.get_verdict_reason();
+          const s = (status || '').toLowerCase();
+          
+          if (s === 'approved') {
+            outputBox.className = 'status-box success';
+            outputBox.style.borderColor = 'var(--lime)';
+            showOutput(`APPROVED\nFunds released to worker.\n\nStatus: ${status}\nReason: ${reason || '-'}`);
+            return;
+          } else if (s === 'rejected') {
+            outputBox.className = 'status-box error';
+            outputBox.style.borderColor = '#ff8080';
+            showOutput(`REJECTED\nFunds refunded to requester.\n\nStatus: ${status}\nReason: ${reason || '-'}`);
+            return;
+          } else {
+            showOutput(`Awaiting AI consensus result...\nStatus: ${status || 'Pending'}\n(Attempt ${attempts}/${maxAttempts})`);
+          }
+        } catch (err) {
+          // CALL_EXCEPTION often means state hasn't updated yet — keep polling
+          console.log(`Attempt ${attempts}: state not ready yet.`);
+          showOutput(`Awaiting AI consensus result...\n(Attempt ${attempts}/${maxAttempts})`);
+        }
+        
+        if (attempts < maxAttempts) {
+          setTimeout(pollStatus, 5000);
+        } else {
+          outputBox.style.borderColor = 'var(--cyan)';
+          outputBox.className = 'status-box';
+          showOutput("Transaction confirmed, but RPC hasn't returned the final verdict yet.\n\nPlease check Studio Next Explorer for the final APPROVED / REJECTED status.");
+        }
+      };
+      
+      pollStatus();
 
-  } catch (e) {
-    showOutput("Gagal mengirim transaksi: " + (e.reason || e.message), true);
-  }
-});
+    } catch (e) {
+      resetOutputStyle();
+      showOutput("Evaluate & Release failed: " + (e.reason || e.message), true);
+      evaluateBtn.disabled = false;
+    }
+  });
 
 </script>
 </body>
