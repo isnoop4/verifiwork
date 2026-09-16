@@ -1,0 +1,23 @@
+# gltest.config.yaml
+# Referensi: hackathon Agent Tank mengharuskan deploy/test di Studio Next
+# (chain 61997). Nama "studio_devnet" di sini adalah nama network gltest
+# untuk environment yang sama -- lihat referensi hackathon (agent_prompt.md)
+# soal perbedaan penamaan studio-next / studio-dev / studio_devnet / studioDevnet.
+
+networks:
+  default: studio_devnet
+
+  # Dipakai untuk pytest tests/direct/ secara implisit (tidak butuh network
+  # sungguhan), disisakan di sini untuk fallback kalau butuh debug lokal.
+  localnet:
+    url: "http://127.0.0.1:4000/api"
+    leader_only: false
+
+  # Studio Next / Studio Devnet (chain 61997) -- WAJIB untuk integration
+  # test hackathon. Butuh akun yang benar-benar terisi test GEN dari
+  # faucet Studio Next, bukan auto-generate seperti localnet/studionet.
+  studio_devnet:
+    accounts:
+      - "${DEPLOYER_PRIVATE_KEY}"
+
+environment: .env

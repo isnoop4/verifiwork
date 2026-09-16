@@ -1,10 +1,24 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
-from genlayer import *
+import genlayer as gl
+from genlayer.types import *
 import json
 
 
-class TranscriptionEscrow(gl.Contract):
+# EOA (wallet biasa) TIDAK bisa dibayar lewat gl.get_contract_at(...).emit_transfer()
+# -- itu untuk komunikasi antar-kontrak, dan terhadap EOA terbukti gagal diam-diam
+# (FINISHED_WITH_RETURN tapi 0 wei berpindah) atau child GenVM ERROR di beberapa
+# kasus. Native value ke EOA harus lewat "ghost" EVM interface seperti ini.
+@gl.evm.contract_interface
+class _EoaRecipient:
+    class View:
+        pass
+
+    class Write:
+        pass
+
+
+class TranscriptionEscrow(gl.contract.Contract):
     requester: Address
     worker: Address
     reward: u256
@@ -17,7 +31,9 @@ class TranscriptionEscrow(gl.Contract):
     def __init__(self):
         self.requester = Address("0x0000000000000000000000000000000000000000")
         self.worker = Address("0x0000000000000000000000000000000000000000")
-        self.reward = u256(0)
+        # u256(...) sebagai constructor call dihapus — di GenVM v0.3+ alias
+        # sized-int (u256, dst.) bukan lagi callable, cukup literal int biasa.
+        self.reward = 0
         self.audio_url = ""
         self.rubric = ""
         self.transcript = ""
@@ -29,9 +45,10 @@ class TranscriptionEscrow(gl.Contract):
         # Reward = dana yang dikirim bareng transaksi ini (native GEN, dalam wei).
         # Contract otomatis memegang dana ini sampai evaluate_and_release()
         # memutuskan payout atau refund.
-        assert self.status in ("empty", "approved", "rejected"), \
-            "Task sedang berjalan, tidak bisa dibuat ulang"
-        assert gl.message.value > u256(0), "Harus kirim reward (value > 0)"
+        if self.status not in ("empty", "approved", "rejected"):
+            raise gl.vm.UserError("Task sedang berjalan, tidak bisa dibuat ulang")
+        if gl.message.value <= 0:
+            raise gl.vm.UserError("Harus kirim reward (value > 0)")
 
         self.requester = gl.message.sender_address
         self.reward = gl.message.value
@@ -44,14 +61,16 @@ class TranscriptionEscrow(gl.Contract):
 
     @gl.public.write
     def submit_result(self, transcript_text: str) -> None:
-        assert self.status == "open", "Task tidak tersedia untuk submission"
+        if self.status != "open":
+            raise gl.vm.UserError("Task tidak tersedia untuk submission")
         self.worker = gl.message.sender_address
         self.transcript = transcript_text
         self.status = "submitted"
 
     @gl.public.write
     def evaluate_and_release(self) -> None:
-        assert self.status == "submitted", "Tidak ada hasil untuk dievaluasi"
+        if self.status != "submitted":
+            raise gl.vm.UserError("Tidak ada hasil untuk dievaluasi")
 
         rubric = self.rubric
         transcript = self.transcript
@@ -104,23 +123,30 @@ class TranscriptionEscrow(gl.Contract):
 
         self.verdict_reason = reason
 
+        # Pakai _EoaRecipient (ghost EVM interface), BUKAN
+        # gl.get_contract_at(...).emit_transfer() -- yang terakhir ini
+        # terverifikasi gagal/silent-fail saat target-nya EOA, bukan kontrak.
         if verdict == "APPROVED":
             self.status = "approved"
-            gl.get_contract_at(self.worker).emit_transfer(value=self.reward)
+            _EoaRecipient(self.worker).emit_transfer(value=u256(self.reward))
         else:
             self.status = "rejected"
-            gl.get_contract_at(self.requester).emit_transfer(value=self.reward)
+            _EoaRecipient(self.requester).emit_transfer(value=u256(self.reward))
 
     @gl.public.write
     def dispute(self) -> None:
         # Catatan: dana sudah ter-refund ke requester saat REJECTED (di atas).
         # Untuk MVP, dispute masih placeholder, belum menahan dana atau
         # memicu re-evaluasi otomatis dengan committee lebih besar.
-        assert self.status == "rejected", "Hanya task rejected yang bisa banding"
-        assert gl.message.sender_address == self.worker, "Hanya worker yang bisa banding"
+        if self.status != "rejected":
+            raise gl.vm.UserError("Hanya task rejected yang bisa banding")
+        if gl.message.sender_address != self.worker:
+            raise gl.vm.UserError("Hanya worker yang bisa banding")
         self.status = "disputed"
-        # TODO: mekanisme appeal butuh riset lebih lanjut ke dokumentasi
-        # Optimistic Democracy GenLayer (bagaimana escalate ke committee lebih besar).
+        # TODO: mekanisme appeal di v0.6 punya API baru: topUpAndSubmitAppeal
+        # di sisi JS SDK + bond/induced-work funding. Perlu riset lanjut ke
+        # halaman "Appeals" & "Consensus v0.6 Migration" di docs.genlayer.com
+        # sebelum bikin ini fungsional.
 
     @gl.public.view
     def get_status(self) -> str:
