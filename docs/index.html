@@ -361,16 +361,41 @@
   });
 
   evaluateBtn.addEventListener('click', async () => {
-    try {
-      showOutput("Menunggu konfirmasi transaksi evaluate_and_release...");
-      const tx = await contract.evaluate_and_release();
-      showOutput(`Transaksi terkirim! Hash: ${tx.hash}. AI Validator sedang bekerja...`);
-      await tx.wait();
-      showOutput("Evaluasi selesai! Cek status di explorer atau panggil get_status().");
-    } catch (e) {
-      showOutput("Gagal: " + (e.reason || e.message), true);
+  try {
+    showOutput("Menunggu konfirmasi transaksi evaluate_and_release...");
+    const tx = await contract.evaluate_and_release();
+    showOutput(`Transaksi terkirim! Hash: ${tx.hash}. AI Validator sedang bekerja...`);
+    
+    // Tunggu transaksi masuk ke blok
+    await tx.wait();
+    
+    // Beri jeda 5 detik agar state kontrak benar-benar terupdate oleh konsensus AI
+    showOutput("Menunggu hasil konsensus AI...");
+    await new Promise(r => setTimeout(r, 5000)); 
+    
+    // Ambil status dan alasan dari kontrak
+    const status = await contract.get_status();
+    const reason = await contract.get_verdict_reason();
+    
+    let resultMessage = `Status: ${status}`;
+    if (reason) resultMessage += `\nAlasan: ${reason}`;
+    
+    // Tampilkan hasil dengan warna yang sesuai
+    if (status.toLowerCase() === 'approved') {
+      outputBox.style.borderColor = 'var(--lime)'; // Hijau
+      showOutput(`✅ APPROVED!\nDana telah dirilis ke worker.\n\n${resultMessage}`);
+    } else if (status.toLowerCase() === 'rejected') {
+      outputBox.style.borderColor = '#ff8080'; // Merah
+      showOutput(`❌ REJECTED.\nDana dikembalikan ke requester.\n\n${resultMessage}`, true);
+    } else {
+      outputBox.style.borderColor = 'var(--cyan)'; // Biru
+      showOutput(`Status saat ini: ${status}\n\n${resultMessage}`);
     }
-  });
+    
+  } catch (e) {
+    showOutput("Gagal: " + (e.reason || e.message), true);
+  }
+});
 
 </script>
 </body>
