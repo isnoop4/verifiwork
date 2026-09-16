@@ -366,34 +366,39 @@
     const tx = await contract.evaluate_and_release();
     showOutput(`Transaksi terkirim! Hash: ${tx.hash}. AI Validator sedang bekerja...`);
     
-    // Tunggu transaksi masuk ke blok
     await tx.wait();
     
-    // Beri jeda 5 detik agar state kontrak benar-benar terupdate oleh konsensus AI
+    // Beri jeda lebih lama, 10 detik
     showOutput("Menunggu hasil konsensus AI...");
-    await new Promise(r => setTimeout(r, 5000)); 
+    await new Promise(r => setTimeout(r, 10000)); 
     
-    // Ambil status dan alasan dari kontrak
-    const status = await contract.get_status();
-    const reason = await contract.get_verdict_reason();
-    
-    let resultMessage = `Status: ${status}`;
-    if (reason) resultMessage += `\nAlasan: ${reason}`;
-    
-    // Tampilkan hasil dengan warna yang sesuai
-    if (status.toLowerCase() === 'approved') {
-      outputBox.style.borderColor = 'var(--lime)'; // Hijau
-      showOutput(`✅ APPROVED!\nDana telah dirilis ke worker.\n\n${resultMessage}`);
-    } else if (status.toLowerCase() === 'rejected') {
-      outputBox.style.borderColor = '#ff8080'; // Merah
-      showOutput(`❌ REJECTED.\nDana dikembalikan ke requester.\n\n${resultMessage}`, true);
-    } else {
-      outputBox.style.borderColor = 'var(--cyan)'; // Biru
-      showOutput(`Status saat ini: ${status}\n\n${resultMessage}`);
+    try {
+      // Coba baca status
+      const status = await contract.get_status();
+      const reason = await contract.get_verdict_reason();
+      
+      let resultMessage = `Status: ${status}`;
+      if (reason) resultMessage += `\nAlasan: ${reason}`;
+      
+      if (status.toLowerCase() === 'approved') {
+        outputBox.style.borderColor = 'var(--lime)';
+        showOutput(`✅ APPROVED!\nDana telah dirilis ke worker.\n\n${resultMessage}`);
+      } else if (status.toLowerCase() === 'rejected') {
+        outputBox.style.borderColor = '#ff8080';
+        showOutput(`❌ REJECTED.\nDana dikembalikan ke requester.\n\n${resultMessage}`, true);
+      } else {
+        outputBox.style.borderColor = 'var(--cyan)';
+        showOutput(`Transaksi berhasil! Status saat ini: ${status}.\n\nCatatan: GenVM mungkin masih memproses hasil akhir. Silakan refresh halaman beberapa saat lagi untuk melihat hasil APPROVED/REJECTED.`);
+      }
+    } catch (readErr) {
+      // Jika gagal baca status, jangan tampilkan error merah, tapi pesan ramah
+      outputBox.style.borderColor = 'var(--cyan)';
+      showOutput("Transaksi berhasil dikirim! Namun, status AI belum bisa dibaca saat ini. Silakan REFRESH halaman ini beberapa saat lagi untuk melihat hasilnya.");
     }
     
   } catch (e) {
-    showOutput("Gagal: " + (e.reason || e.message), true);
+    // Ini error jika transaksi gagal dikirim (misal user reject di wallet)
+    showOutput("Gagal mengirim transaksi: " + (e.reason || e.message), true);
   }
 });
 
