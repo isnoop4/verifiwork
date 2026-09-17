@@ -14,6 +14,7 @@
     --accent: #5b8cff;
     --ok: #3ddc97;
     --err: #ff6b6b;
+    --warn: #ffd166;
   }
   * { box-sizing: border-box; }
   body {
@@ -59,9 +60,10 @@
   }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   button.secondary { background: #2a2f3a; }
-  .status-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+  .status-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; gap: 12px; }
   .status-line:last-child { border-bottom: none; }
-  .status-line span:first-child { color: var(--muted); }
+  .status-line span:first-child { color: var(--muted); flex-shrink: 0; }
+  .status-line span:last-child { text-align: right; word-break: break-all; }
   .log {
     font-family: monospace;
     font-size: 0.75rem;
@@ -71,7 +73,7 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px;
-    max-height: 220px;
+    max-height: 260px;
     overflow-y: auto;
     margin-top: 10px;
   }
@@ -84,24 +86,26 @@
     border-radius: 8px;
     padding: 10px;
     font-size: 0.78rem;
-    color: #ffd166;
+    color: var(--warn);
     margin-top: 10px;
+    line-height: 1.5;
   }
+  .hint { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
 </style>
 </head>
 <body>
 
 <h1>VerifiWork</h1>
-<div class="sub">Transcription escrow dengan verifikasi AI di GenLayer Studio Next</div>
+<div class="sub">Transcription escrow with AI verification on GenLayer Studio Next</div>
 
 <div class="card">
   <h2>1. Wallet</h2>
-  <div id="wallet-status" class="status-line"><span>Status</span><span id="wallet-status-text">Belum terhubung</span></div>
+  <div class="status-line"><span>Status</span><span id="wallet-status-text">Not connected</span></div>
   <button id="connect-btn">Connect Wallet</button>
 </div>
 
 <div class="card">
-  <h2>2. Kontrak</h2>
+  <h2>2. Contract</h2>
   <label for="contract-address">Contract address</label>
   <input id="contract-address" placeholder="0x..." value="0x652Fc58482c0413Bdc3576B024fa3351D777Ce84" />
   <button id="refresh-btn" class="secondary">Refresh status</button>
@@ -116,11 +120,12 @@
 <div class="card">
   <h2>3. Create Task (requester)</h2>
   <label for="ct-audio">Audio URL</label>
-  <input id="ct-audio" placeholder="https://example.com/audio.mp3" />
+  <input id="ct-audio" placeholder="https://example.com/audio.mp3" value="https://example.com/audio.wav" />
   <label for="ct-rubric">Rubric</label>
-  <textarea id="ct-rubric" placeholder="Transkrip harus akurat, lengkap, ..."></textarea>
-  <label for="ct-value">Reward (wei -- satuan terkecil, BUKAN GEN penuh)</label>
-  <input id="ct-value" type="number" value="1000" />
+  <textarea id="ct-rubric" placeholder="Transkrip harus akurat, lengkap, ...">Transkrip harus akurat, lengkap, dan tidak boleh ada indikasi penggunaan AI tool yang dilarang.</textarea>
+  <label for="ct-value">Reward (dalam GEN, akan dikonversi otomatis ke wei)</label>
+  <input id="ct-value" type="number" value="1" step="0.0001" min="0" />
+  <div class="hint">Contract expects wei. 1 GEN = 10^18 wei.</div>
   <button id="create-task-btn">Send create_task</button>
 </div>
 
@@ -134,54 +139,69 @@
 <div class="card">
   <h2>5. Evaluate &amp; Release</h2>
   <div class="warn-box">
-    Memanggil LLM validator sungguhan lalu transfer reward otomatis
-    (<code>emit_transfer</code> ke EOA). Estimasi fee generik di bawah ini
-    TERBUKTI BISA GAGAL dengan error <code>no_matching_allocation # external</code>
-    karena panggilan <code>emit_transfer</code> butuh alokasi fee eksternal
-    khusus yang belum kami temukan cara construct-nya dengan pasti dari SDK
-    JS ini. Kalau tombol ini gagal dengan error itu, gunakan Studio Next Web
-    IDE untuk langkah ini (UI-nya terbukti auto-handle fee dengan benar).
+    <strong>Known limitation:</strong> Calling the real LLM validator followed by an automatic
+    reward transfer (<code>emit_transfer</code> to EOA) may fail with
+    <code>no_matching_allocation # external</code> when triggered from this JS SDK.
+    If that happens, use the <strong>Studio Next Web IDE</strong> for this final step —
+    its UI handles the external fee allocation correctly. You can then come back here and
+    click "Refresh status" to see the final verdict.
   </div>
   <button id="evaluate-btn">Send evaluate_and_release</button>
 </div>
 
 <div class="card">
   <h2>Log</h2>
-  <div id="log" class="log">Menunggu aksi...</div>
+  <div id="log" class="log">Waiting for action...</div>
 </div>
 
 <script type="module">
-  // PENTING: pin persis ke 2.0.0-rc.1 -- @latest akan resolve ke rilis lama
-  // yang tidak punya export studioDevnet.
-  import { createClient, createAccount } from "https://esm.sh/genlayer-js@2.0.0-rc.1";
+  import { createClient } from "https://esm.sh/genlayer-js@2.0.0-rc.1";
   import { studioDevnet } from "https://esm.sh/genlayer-js@2.0.0-rc.1/chains";
 
+  // === CONSTANTS ===
+  const STUDIO_NEXT_CHAIN_ID_HEX = "0xF22D"; // 61997 decimal
+  const STUDIO_NEXT_RPC = "https://studio-dev.genlayer.com/api";
+  const STUDIO_NEXT_EXPLORER = "https://explorer-studio-dev.genlayer.com";
+  const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
+
+  // === DOM ===
   const logEl = document.getElementById("log");
+
   function log(msg, isError = false) {
     const time = new Date().toLocaleTimeString();
-    const line = `[${time}] ${typeof msg === "string" ? msg : JSON.stringify(msg, null, 2)}`;
-    logEl.textContent = line + "\n\n" + logEl.textContent;
+    const body = typeof msg === "string" ? msg : JSON.stringify(msg, null, 2);
+    logEl.textContent = `[${time}] ${body}\n\n` + logEl.textContent;
     if (isError) console.error(msg); else console.log(msg);
   }
 
-  // Chain 61997 dalam hex = 0xF22D (dikonfirmasi hasil konversi manual --
-  // cocok kalau dicek: 0xF22D = 61997 desimal).
-  const STUDIO_NEXT_CHAIN_ID_HEX = "0xF22D";
-  const STUDIO_NEXT_RPC = "https://studio-dev.genlayer.com/api";
-  const STUDIO_NEXT_EXPLORER = "https://explorer-studio-dev.genlayer.com";
-
+  // === CLIENT STATE ===
   let client = null;
-  let account = null; // alamat wallet (string), bukan objek private key -- signing didelegasikan ke window.ethereum
+  let account = null;
+
+  // === HELPERS ===
+  function getContractAddress() {
+    const raw = document.getElementById("contract-address").value.trim();
+    if (!raw) throw new Error("Contract address is empty.");
+    if (!ADDRESS_REGEX.test(raw)) throw new Error("Contract address is not a valid 0x-prefixed 40-char hex string.");
+    return raw;
+  }
+
+  function requireClient() {
+    if (!client || !account) {
+      log("Connect wallet first.", true);
+      return false;
+    }
+    return true;
+  }
 
   async function ensureCorrectNetwork() {
-    if (!window.ethereum) throw new Error("Wallet (window.ethereum) tidak ditemukan");
+    if (!window.ethereum) throw new Error("No EVM wallet detected (window.ethereum is empty).");
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: STUDIO_NEXT_CHAIN_ID_HEX }],
       });
     } catch (switchError) {
-      // 4902 = chain belum ada di wallet, coba tambahkan
       if (switchError.code === 4902) {
         await window.ethereum.request({
           method: "wallet_addEthereumChain",
@@ -194,50 +214,11 @@
           }],
         });
       } else {
-        // JANGAN diam-diam lanjut kalau switch network gagal -- stop flow.
         throw switchError;
       }
     }
   }
 
-  document.getElementById("connect-btn").addEventListener("click", async () => {
-    try {
-      if (!window.ethereum) {
-        log("Tidak ada wallet terdeteksi (window.ethereum kosong). Install MetaMask/Rabby.", true);
-        return;
-      }
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      await ensureCorrectNetwork();
-
-      account = accounts[0];
-      client = createClient({
-        chain: studioDevnet,
-        account,
-        provider: window.ethereum, // WAJIB eksplisit, jangan andalkan default
-      });
-
-      document.getElementById("wallet-status-text").textContent = account;
-      log("Wallet terhubung: " + account);
-    } catch (err) {
-      log("Gagal connect / switch network: " + err.message, true);
-    }
-  });
-
-  function requireClient() {
-    if (!client) {
-      log("Connect wallet dulu.", true);
-      return false;
-    }
-    return true;
-  }
-
-  function getContractAddress() {
-    return document.getElementById("contract-address").value.trim();
-  }
-
-  // Estimasi fee generik -- terbukti cukup untuk create_task & submit_result
-  // (tidak ada panggilan eksternal di dalamnya). TIDAK cukup untuk
-  // evaluate_and_release (lihat catatan di kartu no. 5).
   async function getGenericFees() {
     const estimate = await client.estimateTransactionFees({
       leaderTimeunitsAllocation: 100n,
@@ -247,9 +228,16 @@
     return { distribution: estimate.distribution, feeValue: estimate.feeValue };
   }
 
+  // === REFRESH STATUS ===
   async function refreshStatus() {
     if (!requireClient()) return;
-    const address = getContractAddress();
+    let address;
+    try {
+      address = getContractAddress();
+    } catch (e) {
+      log(e.message, true);
+      return;
+    }
     try {
       const status = await client.readContract({ address, functionName: "get_status", args: [] });
       const reward = await client.readContract({ address, functionName: "get_reward", args: [] });
@@ -257,51 +245,103 @@
       document.getElementById("f-status").textContent = status;
       document.getElementById("f-reward").textContent = String(reward);
       document.getElementById("f-reason").textContent = reason || "-";
-      log("Status ter-refresh.");
+      log(`Status refreshed: ${status} | reward=${reward} | reason=${reason || "-"}`);
     } catch (err) {
-      log("Gagal baca status: " + err.message, true);
+      log("Failed to read status: " + err.message, true);
     }
   }
 
+  // === CONNECT WALLET ===
+  document.getElementById("connect-btn").addEventListener("click", async () => {
+    try {
+      if (!window.ethereum) {
+        log("No wallet detected. Install MetaMask / Rabby / OKX Wallet.", true);
+        return;
+      }
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      await ensureCorrectNetwork();
+
+      account = accounts[0];
+      client = createClient({
+        chain: studioDevnet,
+        account,
+        provider: window.ethereum,
+      });
+
+      document.getElementById("wallet-status-text").textContent = account;
+      log("Wallet connected: " + account);
+    } catch (err) {
+      log("Connect / network switch failed: " + err.message, true);
+    }
+  });
+
+  // === REFRESH BUTTON ===
   document.getElementById("refresh-btn").addEventListener("click", refreshStatus);
 
+  // === STEP 1: CREATE TASK ===
   document.getElementById("create-task-btn").addEventListener("click", async () => {
     if (!requireClient()) return;
-    const address = getContractAddress();
+    let address;
+    try { address = getContractAddress(); } catch (e) { return log(e.message, true); }
+
     const audioUrl = document.getElementById("ct-audio").value.trim();
     const rubric = document.getElementById("ct-rubric").value.trim();
-    const value = BigInt(document.getElementById("ct-value").value || "0");
+    const genValue = document.getElementById("ct-value").value.trim();
+
+    if (!audioUrl || !rubric || !genValue) {
+      return log("Please fill in Audio URL, Rubric, and Reward.", true);
+    }
+
+    // Convert GEN to wei
+    let valueWei;
+    try {
+      const [whole, frac = ""] = genValue.split(".");
+      const fracPadded = (frac + "0".repeat(18)).slice(0, 18);
+      valueWei = BigInt(whole || "0") * 10n ** 18n + BigInt(fracPadded || "0");
+    } catch (e) {
+      return log("Invalid reward value.", true);
+    }
+    if (valueWei <= 0n) return log("Reward must be greater than 0.", true);
 
     try {
-      log("Mengestimasi fee untuk create_task...");
+      log("Estimating fee for create_task...");
       const fees = await getGenericFees();
-      log("Mengirim create_task...");
+      log("Sending create_task...");
       const txHash = await client.writeContract({
         account,
         address,
         functionName: "create_task",
         args: [audioUrl, rubric],
-        value,
+        value: valueWei,
         fees,
       });
       log("tx_hash: " + txHash);
-      const receipt = await client.waitForTransactionReceipt({ hash: txHash, status: "FINALIZED", retries: 40, interval: 3000 });
-      log(receipt);
+      const receipt = await client.waitForTransactionReceipt({
+        hash: txHash,
+        status: "FINALIZED",
+        retries: 40,
+        interval: 3000,
+      });
+      log("create_task finalized:\n" + JSON.stringify(receipt, null, 2));
       await refreshStatus();
     } catch (err) {
-      log("create_task gagal: " + err.message, true);
+      log("create_task failed: " + err.message, true);
     }
   });
 
+  // === STEP 2: SUBMIT RESULT ===
   document.getElementById("submit-result-btn").addEventListener("click", async () => {
     if (!requireClient()) return;
-    const address = getContractAddress();
+    let address;
+    try { address = getContractAddress(); } catch (e) { return log(e.message, true); }
+
     const text = document.getElementById("sr-text").value.trim();
+    if (!text) return log("Please paste the transcript text.", true);
 
     try {
-      log("Mengestimasi fee untuk submit_result...");
+      log("Estimating fee for submit_result...");
       const fees = await getGenericFees();
-      log("Mengirim submit_result...");
+      log("Sending submit_result...");
       const txHash = await client.writeContract({
         account,
         address,
@@ -310,22 +350,29 @@
         fees,
       });
       log("tx_hash: " + txHash);
-      const receipt = await client.waitForTransactionReceipt({ hash: txHash, status: "FINALIZED", retries: 40, interval: 3000 });
-      log(receipt);
+      const receipt = await client.waitForTransactionReceipt({
+        hash: txHash,
+        status: "FINALIZED",
+        retries: 40,
+        interval: 3000,
+      });
+      log("submit_result finalized:\n" + JSON.stringify(receipt, null, 2));
       await refreshStatus();
     } catch (err) {
-      log("submit_result gagal: " + err.message, true);
+      log("submit_result failed: " + err.message, true);
     }
   });
 
+  // === STEP 3: EVALUATE & RELEASE ===
   document.getElementById("evaluate-btn").addEventListener("click", async () => {
     if (!requireClient()) return;
-    const address = getContractAddress();
+    let address;
+    try { address = getContractAddress(); } catch (e) { return log(e.message, true); }
 
     try {
-      log("Mengestimasi fee untuk evaluate_and_release (generik -- lihat catatan di kartu 5)...");
+      log("Estimating fee for evaluate_and_release (generic — see note in card 5)...");
       const fees = await getGenericFees();
-      log("Mengirim evaluate_and_release (LLM sungguhan, bisa 60-90 detik)...");
+      log("Sending evaluate_and_release (real LLM call, may take 60-90s)...");
       const txHash = await client.writeContract({
         account,
         address,
@@ -334,11 +381,26 @@
         fees,
       });
       log("tx_hash: " + txHash);
-      const receipt = await client.waitForTransactionReceipt({ hash: txHash, status: "FINALIZED", retries: 40, interval: 3000 });
-      log(receipt);
+      const receipt = await client.waitForTransactionReceipt({
+        hash: txHash,
+        status: "FINALIZED",
+        retries: 40,
+        interval: 3000,
+      });
+      log("evaluate_and_release finalized:\n" + JSON.stringify(receipt, null, 2));
       await refreshStatus();
     } catch (err) {
-      log("evaluate_and_release gagal: " + err.message + " -- kalau ini soal 'no_matching_allocation # external', pakai Studio Next Web IDE untuk langkah ini.", true);
+      const msg = err.message || String(err);
+      if (msg.includes("no_matching_allocation")) {
+        log(
+          "evaluate_and_release failed with 'no_matching_allocation # external'.\n" +
+          "This is a known SDK limitation. Please run this step in the Studio Next Web IDE instead, " +
+          "then come back here and click 'Refresh status' to see the final verdict.",
+          true
+        );
+      } else {
+        log("evaluate_and_release failed: " + msg, true);
+      }
     }
   });
 </script>
