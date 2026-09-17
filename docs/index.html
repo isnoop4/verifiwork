@@ -1,468 +1,347 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VerifiWork — AI-judged escrow for gig data-work</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VerifiWork — Transcription Escrow</title>
 <style>
   :root {
-    --bg-top: #0a1220;
-    --bg-bottom: #101b30;
-    --cyan: #22d3ee;
-    --cyan-dim: #0891b2;
-    --lime: #a3e635;
-    --text: #e6f1f8;
-    --text-dim: #93a5b8;
-    --line: #1e3a52;
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #2a2f3a;
+    --text: #e7e9ee;
+    --muted: #9aa3b2;
+    --accent: #5b8cff;
+    --ok: #3ddc97;
+    --err: #ff6b6b;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
+    background: var(--bg);
+    color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
-    color: var(--text);
-    line-height: 1.6;
+    padding: 16px;
+    max-width: 720px;
+    margin: 0 auto;
   }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
-  header { text-align: center; margin-bottom: 56px; }
-  .logo {
-    width: 88px; height: 88px; margin: 0 auto 20px;
-    border-radius: 20px;
-    background: radial-gradient(circle at 30% 20%, #16324a, #0a1220);
-    display: flex; align-items: center; justify-content: center;
-    border: 1px solid var(--line);
-  }
-  .logo svg { width: 52px; height: 52px; }
-  h1 { font-size: 2.4rem; margin: 0 0 12px; letter-spacing: -0.02em; }
-  .tagline { color: var(--text-dim); font-size: 1.05rem; max-width: 520px; margin: 0 auto; }
-  .badge {
-    display: inline-block; margin-top: 18px; padding: 6px 14px;
-    border: 1px solid var(--cyan-dim); border-radius: 999px;
-    font-size: 0.8rem; color: var(--cyan); letter-spacing: 0.05em; text-transform: uppercase;
-  }
-  section { margin-bottom: 48px; }
-  h2 { font-size: 1.3rem; color: var(--cyan); border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 20px; }
-  .flow { display: flex; flex-direction: column; gap: 14px; }
-  .step {
-    display: flex; gap: 16px; align-items: flex-start;
-    background: rgba(34, 211, 238, 0.04); border: 1px solid var(--line);
-    border-radius: 12px; padding: 16px 18px;
-  }
-  .step-num {
-    flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
-    background: var(--cyan-dim); color: #04202b; font-weight: 700;
-    font-size: 0.85rem; display: flex; align-items: center; justify-content: center;
-  }
-  .step p { margin: 0; color: var(--text-dim); font-size: 0.95rem; }
-  .step strong { color: var(--text); }
-  .outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .outcome { border-radius: 12px; padding: 18px; border: 1px solid var(--line); }
-  .outcome.approved { border-color: rgba(163, 230, 53, 0.4); background: rgba(163, 230, 53, 0.05); }
-  .outcome.rejected { border-color: rgba(255, 100, 100, 0.3); background: rgba(255, 100, 100, 0.05); }
-  .outcome .tag { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
-  .outcome.approved .tag { color: var(--lime); }
-  .outcome.rejected .tag { color: #ff8080; }
-  .outcome p { margin: 6px 0 0; color: var(--text-dim); font-size: 0.9rem; }
-  .links { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px;
-    border-radius: 10px; text-decoration: none; font-size: 0.95rem;
-    font-weight: 600; transition: opacity 0.15s; border: none; cursor: pointer;
-  }
-  .btn:hover:not(:disabled) { opacity: 0.85; }
-  .btn.primary { background: var(--cyan); color: #04202b; }
-  .btn.secondary { border: 1px solid var(--line); color: var(--text); background: transparent; }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  footer { text-align: center; margin-top: 60px; color: var(--text-dim); font-size: 0.85rem; }
-  code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
-  
-  .interact-box {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--line);
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 20px;
-    margin-top: 20px;
+    padding: 16px;
+    margin-bottom: 16px;
   }
-  .interact-box h3 { margin-top: 0; font-size: 1rem; color: var(--cyan); }
-  .interact-box input, .interact-box textarea {
+  .card h2 { font-size: 1rem; margin: 0 0 12px 0; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin: 10px 0 4px; }
+  input, textarea {
     width: 100%;
-    padding: 10px;
-    margin-bottom: 12px;
+    background: #0d0f14;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    border: 1px solid var(--line);
-    background: #0a1220;
     color: var(--text);
-    font-family: inherit;
+    padding: 10px;
     font-size: 0.9rem;
   }
-  .interact-box input::placeholder, .interact-box textarea::placeholder { color: #5a7184; }
-  .status-box {
-    background: #07101a;
-    border: 1px solid var(--cyan-dim);
+  textarea { min-height: 70px; resize: vertical; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
     border-radius: 8px;
-    padding: 12px;
-    margin-top: 16px;
-    font-family: monospace;
-    font-size: 0.85rem;
-    word-break: break-all;
-    white-space: pre-wrap;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    margin-top: 12px;
+    cursor: pointer;
+    width: 100%;
   }
-  .status-box.success { border-color: var(--lime); }
-  .status-box.error { border-color: #ff8080; }
-
-  @media (max-width: 480px) {
-    .outcomes { grid-template-columns: 1fr; }
-    h1 { font-size: 1.9rem; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: #2a2f3a; }
+  .status-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+  .status-line:last-child { border-bottom: none; }
+  .status-line span:first-child { color: var(--muted); }
+  .log {
+    font-family: monospace;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: #0d0f14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; }
+  .pill.ok { background: rgba(61,220,151,0.15); color: var(--ok); }
+  .pill.err { background: rgba(255,107,107,0.15); color: var(--err); }
+  .warn-box {
+    background: rgba(255,193,7,0.1);
+    border: 1px solid rgba(255,193,7,0.3);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.78rem;
+    color: #ffd166;
+    margin-top: 10px;
   }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header>
-    <div class="logo">
-      <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-        <path d="M256 108 L354 146 V246 C354 320 312 366 256 396 C200 366 158 320 158 246 V146 Z"
-              fill="none" stroke="#22d3ee" stroke-width="14" stroke-linejoin="round"/>
-        <path d="M204 250 L240 288 L316 206" fill="none" stroke="#a3e635"
-              stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <h1>VerifiWork</h1>
-    <p class="tagline">AI-judged escrow for gig data-work — quality verified against a public rubric, payment released automatically.</p>
-    <span class="badge">GenLayer Agent Tank · Future of Work</span>
-    
-    <div style="margin-top: 24px;">
-      <button id="connectBtn" class="btn primary">Connect Wallet</button>
-      <p id="walletStatus" style="font-size: 0.8rem; color: var(--text-dim); margin-top: 8px;">Not connected</p>
-    </div>
-  </header>
+<h1>VerifiWork</h1>
+<div class="sub">Transcription escrow dengan verifikasi AI di GenLayer Studio Next</div>
 
-  <section>
-    <h2>The Problem</h2>
-    <p style="color: var(--text-dim);">
-      Gig platform data-workers — transcription, AI evaluation, annotation — face subjective quality
-      reviews from a single reviewer, slow and opaque payment disputes, and reputation that's locked
-      into a single platform.
-    </p>
-  </section>
-
-  <section>
-    <h2>How It Works</h2>
-    <div class="flow">
-      <div class="step">
-        <div class="step-num">1</div>
-        <p><strong>Requester</strong> posts a task with a reward and a public quality rubric. Funds go into on-chain escrow.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <p><strong>Worker</strong> submits their work.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <p><strong>AI validator committee</strong> judges the submission against the rubric using GenLayer's Equivalence Principle.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">4</div>
-        <p>Consensus verdict releases funds automatically — no manual review, no single point of judgment.</p>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Tested End-to-End</h2>
-    <div class="outcomes">
-      <div class="outcome rejected">
-        <div class="tag">Rejected</div>
-        <p>A weak, incomplete transcript is correctly rejected. Funds are refunded to the requester automatically.</p>
-      </div>
-      <div class="outcome approved">
-        <div class="tag">Approved</div>
-        <p>A coherent, well-formed transcript is correctly approved. Funds are released to the worker automatically.</p>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>Try It (Live on Studio Next)</h2>
-    <p style="color: var(--text-dim);">
-      Interact directly with the contract deployed on <strong>GenLayer Studio Next (Chain 61997)</strong>.
-      Follow the steps in order — each button unlocks the next.
-    </p>
-    
-    <div class="interact-box">
-      <h3>Step 1 · Create Task (Requester)</h3>
-      <input type="text" id="audioUrl" placeholder="Audio URL (e.g., https://example.com/audio.wav)">
-      <input type="text" id="rubric" placeholder="Rubric (e.g., Transcript must be accurate, complete...)">
-      <input type="number" id="reward" placeholder="Reward (GEN)" value="1">
-      <button id="createTaskBtn" class="btn secondary" disabled>Create Task</button>
-    </div>
-
-    <div class="interact-box">
-      <h3>Step 2 · Submit Result (Worker)</h3>
-      <textarea id="transcriptText" rows="4" placeholder="Paste the full transcript text here..."></textarea>
-      <button id="submitResultBtn" class="btn secondary" disabled>Submit Result</button>
-    </div>
-
-    <div class="interact-box">
-      <h3>Step 3 · Evaluate &amp; Release (AI Validator)</h3>
-      <button id="evaluateBtn" class="btn primary" disabled>Evaluate and Release</button>
-    </div>
-
-    <div id="outputBox" class="status-box" style="display: none;"></div>
-  </section>
-
-  <div class="links">
-    <a class="btn secondary" href="https://github.com/isnoop4/verifiwork">View on GitHub</a>
-    <a class="btn secondary" href="https://github.com/isnoop4/verifiwork/blob/main/contracts/transcription_escrow.py">View Contract</a>
-  </div>
-
-  <footer>
-    Built for GenLayer Agent Tank — Future of Work track
-  </footer>
-
+<div class="card">
+  <h2>1. Wallet</h2>
+  <div id="wallet-status" class="status-line"><span>Status</span><span id="wallet-status-text">Belum terhubung</span></div>
+  <button id="connect-btn">Connect Wallet</button>
 </div>
 
-<!-- Integrasi genlayer-js melalui ES Module -->
+<div class="card">
+  <h2>2. Kontrak</h2>
+  <label for="contract-address">Contract address</label>
+  <input id="contract-address" placeholder="0x..." value="0x652Fc58482c0413Bdc3576B024fa3351D777Ce84" />
+  <button id="refresh-btn" class="secondary">Refresh status</button>
+
+  <div id="status-panel" style="margin-top: 14px;">
+    <div class="status-line"><span>status</span><span id="f-status">-</span></div>
+    <div class="status-line"><span>reward</span><span id="f-reward">-</span></div>
+    <div class="status-line"><span>verdict_reason</span><span id="f-reason">-</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3. Create Task (requester)</h2>
+  <label for="ct-audio">Audio URL</label>
+  <input id="ct-audio" placeholder="https://example.com/audio.mp3" />
+  <label for="ct-rubric">Rubric</label>
+  <textarea id="ct-rubric" placeholder="Transkrip harus akurat, lengkap, ..."></textarea>
+  <label for="ct-value">Reward (wei -- satuan terkecil, BUKAN GEN penuh)</label>
+  <input id="ct-value" type="number" value="1000" />
+  <button id="create-task-btn">Send create_task</button>
+</div>
+
+<div class="card">
+  <h2>4. Submit Result (worker)</h2>
+  <label for="sr-text">Transcript</label>
+  <textarea id="sr-text" placeholder="Isi transkrip hasil kerja..."></textarea>
+  <button id="submit-result-btn">Send submit_result</button>
+</div>
+
+<div class="card">
+  <h2>5. Evaluate &amp; Release</h2>
+  <div class="warn-box">
+    Memanggil LLM validator sungguhan lalu transfer reward otomatis
+    (<code>emit_transfer</code> ke EOA). Estimasi fee generik di bawah ini
+    TERBUKTI BISA GAGAL dengan error <code>no_matching_allocation # external</code>
+    karena panggilan <code>emit_transfer</code> butuh alokasi fee eksternal
+    khusus yang belum kami temukan cara construct-nya dengan pasti dari SDK
+    JS ini. Kalau tombol ini gagal dengan error itu, gunakan Studio Next Web
+    IDE untuk langkah ini (UI-nya terbukti auto-handle fee dengan benar).
+  </div>
+  <button id="evaluate-btn">Send evaluate_and_release</button>
+</div>
+
+<div class="card">
+  <h2>Log</h2>
+  <div id="log" class="log">Menunggu aksi...</div>
+</div>
+
 <script type="module">
-  import { createClient, createWalletClient, custom, parseEther } from 'https://esm.sh/genlayer-js@2.0.0-rc.1';
-  import { studioChain } from 'https://esm.sh/genlayer-js@2.0.0-rc.1/chains';
+  // PENTING: pin persis ke 2.0.0-rc.1 -- @latest akan resolve ke rilis lama
+  // yang tidak punya export studioDevnet.
+  import { createClient, createAccount } from "https://esm.sh/genlayer-js@2.0.0-rc.1";
+  import { studioDevnet } from "https://esm.sh/genlayer-js@2.0.0-rc.1/chains";
 
-  // === CONTRACT CONFIG ===
-  const CONTRACT_ADDRESS = "0xDa7924bE0eD47D580fc33b9b55d6B00ce6bF9F57";
-  const STUDIO_NEXT_CHAIN_ID = 61997;
+  const logEl = document.getElementById("log");
+  function log(msg, isError = false) {
+    const time = new Date().toLocaleTimeString();
+    const line = `[${time}] ${typeof msg === "string" ? msg : JSON.stringify(msg, null, 2)}`;
+    logEl.textContent = line + "\n\n" + logEl.textContent;
+    if (isError) console.error(msg); else console.log(msg);
+  }
+
+  // Chain 61997 dalam hex = 0xF22D (dikonfirmasi hasil konversi manual --
+  // cocok kalau dicek: 0xF22D = 61997 desimal).
+  const STUDIO_NEXT_CHAIN_ID_HEX = "0xF22D";
   const STUDIO_NEXT_RPC = "https://studio-dev.genlayer.com/api";
+  const STUDIO_NEXT_EXPLORER = "https://explorer-studio-dev.genlayer.com";
 
-  let client;
-  let walletClient;
-  let userAddress;
+  let client = null;
+  let account = null; // alamat wallet (string), bukan objek private key -- signing didelegasikan ke window.ethereum
 
-  // === DOM ELEMENTS ===
-  const connectBtn = document.getElementById('connectBtn');
-  const walletStatus = document.getElementById('walletStatus');
-  const createTaskBtn = document.getElementById('createTaskBtn');
-  const submitResultBtn = document.getElementById('submitResultBtn');
-  const evaluateBtn = document.getElementById('evaluateBtn');
-  const outputBox = document.getElementById('outputBox');
-
-  // === UTILITY ===
-  function showOutput(msg, isError = false) {
-    outputBox.style.display = 'block';
-    outputBox.textContent = msg;
-    outputBox.className = 'status-box ' + (isError ? 'error' : 'success');
-  }
-
-  function resetOutputStyle() {
-    outputBox.style.borderColor = 'var(--cyan-dim)';
-    outputBox.className = 'status-box';
-  }
-
-  // === CONNECT WALLET ===
-  connectBtn.addEventListener('click', async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        userAddress = accounts[0];
-
-        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-        if (parseInt(chainId, 16) !== STUDIO_NEXT_CHAIN_ID) {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x' + STUDIO_NEXT_CHAIN_ID.toString(16) }],
-            });
-          } catch (switchError) {
-            if (switchError.code === 4902) {
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: '0x' + STUDIO_NEXT_CHAIN_ID.toString(16),
-                  chainName: 'GenLayer Studio Next',
-                  nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-                  rpcUrls: [STUDIO_NEXT_RPC],
-                }],
-              });
-            }
-          }
-        }
-
-        // Inisialisasi genlayer client & wallet client
-        client = createClient({
-          chain: studioChain,
-          transport: custom(window.ethereum)
+  async function ensureCorrectNetwork() {
+    if (!window.ethereum) throw new Error("Wallet (window.ethereum) tidak ditemukan");
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: STUDIO_NEXT_CHAIN_ID_HEX }],
+      });
+    } catch (switchError) {
+      // 4902 = chain belum ada di wallet, coba tambahkan
+      if (switchError.code === 4902) {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: STUDIO_NEXT_CHAIN_ID_HEX,
+            chainName: "GenLayer Studio Next",
+            nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
+            rpcUrls: [STUDIO_NEXT_RPC],
+            blockExplorerUrls: [STUDIO_NEXT_EXPLORER],
+          }],
         });
-
-        walletClient = createWalletClient({
-          account: userAddress,
-          chain: studioChain,
-          transport: custom(window.ethereum)
-        });
-
-        walletStatus.textContent = `Connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
-        walletStatus.style.color = "var(--lime)";
-        
-        createTaskBtn.disabled = false;
-        submitResultBtn.disabled = true;
-        evaluateBtn.disabled = true;
-        
-        resetOutputStyle();
-        outputBox.style.display = 'block';
-        outputBox.textContent = "Wallet connected via genlayer-js. Step 1 is ready — create a task to begin.";
-        
-      } catch (error) {
-        console.error(error);
-        walletStatus.textContent = "Failed to connect.";
-        walletStatus.style.color = "#ff8080";
+      } else {
+        // JANGAN diam-diam lanjut kalau switch network gagal -- stop flow.
+        throw switchError;
       }
-    } else {
-      alert("No EVM wallet detected. Please install MetaMask or OKX Wallet.");
+    }
+  }
+
+  document.getElementById("connect-btn").addEventListener("click", async () => {
+    try {
+      if (!window.ethereum) {
+        log("Tidak ada wallet terdeteksi (window.ethereum kosong). Install MetaMask/Rabby.", true);
+        return;
+      }
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      await ensureCorrectNetwork();
+
+      account = accounts[0];
+      client = createClient({
+        chain: studioDevnet,
+        account,
+        provider: window.ethereum, // WAJIB eksplisit, jangan andalkan default
+      });
+
+      document.getElementById("wallet-status-text").textContent = account;
+      log("Wallet terhubung: " + account);
+    } catch (err) {
+      log("Gagal connect / switch network: " + err.message, true);
     }
   });
 
-  // === STEP 1: CREATE TASK ===
-  createTaskBtn.addEventListener('click', async () => {
-    const audioUrl = document.getElementById('audioUrl').value.trim();
-    const rubric = document.getElementById('rubric').value.trim();
-    const reward = document.getElementById('reward').value.trim();
-
-    if (!audioUrl || !rubric || !reward) {
-      return showOutput("Please fill in all fields (Audio URL, Rubric, Reward).", true);
+  function requireClient() {
+    if (!client) {
+      log("Connect wallet dulu.", true);
+      return false;
     }
-    
+    return true;
+  }
+
+  function getContractAddress() {
+    return document.getElementById("contract-address").value.trim();
+  }
+
+  // Estimasi fee generik -- terbukti cukup untuk create_task & submit_result
+  // (tidak ada panggilan eksternal di dalamnya). TIDAK cukup untuk
+  // evaluate_and_release (lihat catatan di kartu no. 5).
+  async function getGenericFees() {
+    const estimate = await client.estimateTransactionFees({
+      leaderTimeunitsAllocation: 100n,
+      validatorTimeunitsAllocation: 200n,
+      rotations: [0n],
+    });
+    return { distribution: estimate.distribution, feeValue: estimate.feeValue };
+  }
+
+  async function refreshStatus() {
+    if (!requireClient()) return;
+    const address = getContractAddress();
     try {
-      createTaskBtn.disabled = true;
-      resetOutputStyle();
-      showOutput("Waiting for create_task transaction confirmation...");
-      
-      const valueInWei = parseEther(reward);
-      
-      const hash = await walletClient.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: 'create_task',
+      const status = await client.readContract({ address, functionName: "get_status", args: [] });
+      const reward = await client.readContract({ address, functionName: "get_reward", args: [] });
+      const reason = await client.readContract({ address, functionName: "get_verdict_reason", args: [] });
+      document.getElementById("f-status").textContent = status;
+      document.getElementById("f-reward").textContent = String(reward);
+      document.getElementById("f-reason").textContent = reason || "-";
+      log("Status ter-refresh.");
+    } catch (err) {
+      log("Gagal baca status: " + err.message, true);
+    }
+  }
+
+  document.getElementById("refresh-btn").addEventListener("click", refreshStatus);
+
+  document.getElementById("create-task-btn").addEventListener("click", async () => {
+    if (!requireClient()) return;
+    const address = getContractAddress();
+    const audioUrl = document.getElementById("ct-audio").value.trim();
+    const rubric = document.getElementById("ct-rubric").value.trim();
+    const value = BigInt(document.getElementById("ct-value").value || "0");
+
+    try {
+      log("Mengestimasi fee untuk create_task...");
+      const fees = await getGenericFees();
+      log("Mengirim create_task...");
+      const txHash = await client.writeContract({
+        account,
+        address,
+        functionName: "create_task",
         args: [audioUrl, rubric],
-        value: valueInWei
+        value,
+        fees,
       });
-
-      showOutput(`Transaction sent! Hash: ${hash}\nWaiting for receipt...`);
-      await client.waitForTransactionReceipt({ hash });
-      
-      outputBox.className = 'status-box success';
-      showOutput("Task created successfully! Step 2 unlocked — submit the worker's result.");
-      
-      submitResultBtn.disabled = false;
-      
-    } catch (e) {
-      resetOutputStyle();
-      showOutput("Create Task failed: " + (e.shortMessage || e.message), true);
-      createTaskBtn.disabled = false;
+      log("tx_hash: " + txHash);
+      const receipt = await client.waitForTransactionReceipt({ hash: txHash, status: "FINALIZED", retries: 40, interval: 3000 });
+      log(receipt);
+      await refreshStatus();
+    } catch (err) {
+      log("create_task gagal: " + err.message, true);
     }
   });
 
-  // === STEP 2: SUBMIT RESULT ===
-  submitResultBtn.addEventListener('click', async () => {
-    const transcript = document.getElementById('transcriptText').value.trim();
-    if (!transcript) {
-      return showOutput("Please paste the transcript text before submitting.", true);
-    }
+  document.getElementById("submit-result-btn").addEventListener("click", async () => {
+    if (!requireClient()) return;
+    const address = getContractAddress();
+    const text = document.getElementById("sr-text").value.trim();
 
     try {
-      submitResultBtn.disabled = true;
-      resetOutputStyle();
-      showOutput("Waiting for submit_result transaction confirmation...");
-      
-      const hash = await walletClient.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: 'submit_result',
-        args: [transcript]
+      log("Mengestimasi fee untuk submit_result...");
+      const fees = await getGenericFees();
+      log("Mengirim submit_result...");
+      const txHash = await client.writeContract({
+        account,
+        address,
+        functionName: "submit_result",
+        args: [text],
+        fees,
       });
-
-      showOutput(`Transaction sent! Hash: ${hash}\nWaiting for receipt...`);
-      await client.waitForTransactionReceipt({ hash });
-      
-      outputBox.className = 'status-box success';
-      showOutput("Result submitted successfully! Step 3 unlocked — run the AI evaluation.");
-      
-      evaluateBtn.disabled = false;
-      
-    } catch (e) {
-      resetOutputStyle();
-      showOutput("Submit Result failed: " + (e.shortMessage || e.message), true);
-      submitResultBtn.disabled = false;
+      log("tx_hash: " + txHash);
+      const receipt = await client.waitForTransactionReceipt({ hash: txHash, status: "FINALIZED", retries: 40, interval: 3000 });
+      log(receipt);
+      await refreshStatus();
+    } catch (err) {
+      log("submit_result gagal: " + err.message, true);
     }
   });
 
-  // === STEP 3: EVALUATE & RELEASE ===
-  evaluateBtn.addEventListener('click', async () => {
+  document.getElementById("evaluate-btn").addEventListener("click", async () => {
+    if (!requireClient()) return;
+    const address = getContractAddress();
+
     try {
-      evaluateBtn.disabled = true;
-      resetOutputStyle();
-      showOutput("Waiting for evaluate_and_release transaction confirmation...");
-      
-      const hash = await walletClient.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: 'evaluate_and_release',
-        args: []
+      log("Mengestimasi fee untuk evaluate_and_release (generik -- lihat catatan di kartu 5)...");
+      const fees = await getGenericFees();
+      log("Mengirim evaluate_and_release (LLM sungguhan, bisa 60-90 detik)...");
+      const txHash = await client.writeContract({
+        account,
+        address,
+        functionName: "evaluate_and_release",
+        args: [],
+        fees,
       });
-
-      showOutput(`Transaction sent! Hash: ${hash}\nAI Validator committee is working...`);
-      await client.waitForTransactionReceipt({ hash });
-      
-      let attempts = 0;
-      const maxAttempts = 12;
-      showOutput("Awaiting AI consensus result...\n(Status: Pending)");
-      
-      const pollStatus = async () => {
-        attempts++;
-        try {
-          const status = await client.readContract({
-            address: CONTRACT_ADDRESS,
-            functionName: 'get_status',
-            args: []
-          });
-
-          const reason = await client.readContract({
-            address: CONTRACT_ADDRESS,
-            functionName: 'get_verdict_reason',
-            args: []
-          });
-
-          const s = String(status || '').toLowerCase();
-          
-          if (s === 'approved') {
-            outputBox.className = 'status-box success';
-            outputBox.style.borderColor = 'var(--lime)';
-            showOutput(`APPROVED\nFunds released to worker.\n\nStatus: ${status}\nReason: ${reason || '-'}`);
-            return;
-          } else if (s === 'rejected') {
-            outputBox.className = 'status-box error';
-            outputBox.style.borderColor = '#ff8080';
-            showOutput(`REJECTED\nFunds refunded to requester.\n\nStatus: ${status}\nReason: ${reason || '-'}`);
-            return;
-          } else {
-            showOutput(`Awaiting AI consensus result...\nStatus: ${status || 'Pending'}\n(Attempt ${attempts}/${maxAttempts})`);
-          }
-        } catch (err) {
-          console.log(`Attempt ${attempts}: state not ready yet.`);
-          showOutput(`Awaiting AI consensus result...\n(Attempt ${attempts}/${maxAttempts})`);
-        }
-        
-        if (attempts < maxAttempts) {
-          setTimeout(pollStatus, 5000);
-        } else {
-          outputBox.style.borderColor = 'var(--cyan)';
-          outputBox.className = 'status-box';
-          showOutput("Transaction confirmed, but RPC hasn't returned the final verdict yet.\n\nPlease check Studio Next Explorer for final status.");
-        }
-      };
-      
-      pollStatus();
-
-    } catch (e) {
-      resetOutputStyle();
-      showOutput("Evaluate & Release failed: " + (e.shortMessage || e.message), true);
-      evaluateBtn.disabled = false;
+      log("tx_hash: " + txHash);
+      const receipt = await client.waitForTransactionReceipt({ hash: txHash, status: "FINALIZED", retries: 40, interval: 3000 });
+      log(receipt);
+      await refreshStatus();
+    } catch (err) {
+      log("evaluate_and_release gagal: " + err.message + " -- kalau ini soal 'no_matching_allocation # external', pakai Studio Next Web IDE untuk langkah ini.", true);
     }
   });
 </script>
+
 </body>
 </html>
