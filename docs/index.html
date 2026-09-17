@@ -115,7 +115,6 @@
     h1 { font-size: 1.9rem; }
   }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -224,30 +223,19 @@
 
 </div>
 
-<script>
+<!-- Integrasi genlayer-js melalui ES Module -->
+<script type="module">
+  import { createClient, createWalletClient, custom, parseEther } from 'https://esm.sh/genlayer-js@2.0.0-rc.1';
+  import { studioChain } from 'https://esm.sh/genlayer-js@2.0.0-rc.1/chains';
+
   // === CONTRACT CONFIG ===
   const CONTRACT_ADDRESS = "0xDa7924bE0eD47D580fc33b9b55d6B00ce6bF9F57";
-
-  const CONTRACT_ABI = [
-    // Write Functions
-    "function create_task(string audio_url, string rubric) payable",
-    "function submit_result(string transcript_text)",
-    "function evaluate_and_release()",
-    "function dispute()",
-    
-    // Read Functions
-    "function get_reward() view returns (uint256)",
-    "function get_status() view returns (string)",
-    "function get_task_details() view returns (string, string, string, string, string, uint256)",
-    "function get_verdict_reason() view returns (string)"
-  ];
-
   const STUDIO_NEXT_CHAIN_ID = 61997;
   const STUDIO_NEXT_RPC = "https://studio-dev.genlayer.com/api";
 
-  let provider;
-  let signer;
-  let contract;
+  let client;
+  let walletClient;
+  let userAddress;
 
   // === DOM ELEMENTS ===
   const connectBtn = document.getElementById('connectBtn');
@@ -273,8 +261,9 @@
   connectBtn.addEventListener('click', async () => {
     if (typeof window.ethereum !== 'undefined') {
       try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+
         const chainId = await window.ethereum.request({ method: 'eth_chainId' });
         if (parseInt(chainId, 16) !== STUDIO_NEXT_CHAIN_ID) {
           try {
@@ -284,39 +273,41 @@
             });
           } catch (switchError) {
             if (switchError.code === 4902) {
-              try {
-                await window.ethereum.request({
-                  method: 'wallet_addEthereumChain',
-                  params: [{
-                    chainId: '0x' + STUDIO_NEXT_CHAIN_ID.toString(16),
-                    chainName: 'GenLayer Studio Next',
-                    nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-                    rpcUrls: [STUDIO_NEXT_RPC],
-                  }],
-                });
-              } catch (addError) {
-                console.error("Failed to add network:", addError);
-              }
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x' + STUDIO_NEXT_CHAIN_ID.toString(16),
+                  chainName: 'GenLayer Studio Next',
+                  nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+                  rpcUrls: [STUDIO_NEXT_RPC],
+                }],
+              });
             }
           }
         }
 
-        provider = new ethers.BrowserProvider(window.ethereum);
-        signer = await provider.getSigner();
-        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+        // Inisialisasi genlayer client & wallet client
+        client = createClient({
+          chain: studioChain,
+          transport: custom(window.ethereum)
+        });
 
-        const address = await signer.getAddress();
-        walletStatus.textContent = `Connected: ${address.substring(0, 6)}...${address.substring(38)}`;
+        walletClient = createWalletClient({
+          account: userAddress,
+          chain: studioChain,
+          transport: custom(window.ethereum)
+        });
+
+        walletStatus.textContent = `Connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
         walletStatus.style.color = "var(--lime)";
         
-        // Only Create Task is enabled at the start
         createTaskBtn.disabled = false;
         submitResultBtn.disabled = true;
         evaluateBtn.disabled = true;
         
         resetOutputStyle();
         outputBox.style.display = 'block';
-        outputBox.textContent = "Wallet connected. Step 1 is ready — create a task to begin.";
+        outputBox.textContent = "Wallet connected via genlayer-js. Step 1 is ready — create a task to begin.";
         
       } catch (error) {
         console.error(error);
@@ -324,7 +315,7 @@
         walletStatus.style.color = "#ff8080";
       }
     } else {
-      alert("No EVM wallet detected. Please install MetaMask, Rabby, or OKX Wallet.");
+      alert("No EVM wallet detected. Please install MetaMask or OKX Wallet.");
     }
   });
 
@@ -341,13 +332,19 @@
     try {
       createTaskBtn.disabled = true;
       resetOutputStyle();
-      showOutput("Waiting for create_task confirmation in your wallet...");
+      showOutput("Waiting for create_task transaction confirmation...");
       
-      const valueInWei = ethers.parseEther(reward);
-      const tx = await contract.create_task(audioUrl, rubric, { value: valueInWei });
-      showOutput(`Transaction sent! Hash: ${tx.hash}\nWaiting for on-chain confirmation...`);
+      const valueInWei = parseEther(reward);
       
-      await tx.wait();
+      const hash = await walletClient.writeContract({
+        address: CONTRACT_ADDRESS,
+        functionName: 'create_task',
+        args: [audioUrl, rubric],
+        value: valueInWei
+      });
+
+      showOutput(`Transaction sent! Hash: ${hash}\nWaiting for receipt...`);
+      await client.waitForTransactionReceipt({ hash });
       
       outputBox.className = 'status-box success';
       showOutput("Task created successfully! Step 2 unlocked — submit the worker's result.");
@@ -356,7 +353,7 @@
       
     } catch (e) {
       resetOutputStyle();
-      showOutput("Create Task failed: " + (e.reason || e.message), true);
+      showOutput("Create Task failed: " + (e.shortMessage || e.message), true);
       createTaskBtn.disabled = false;
     }
   });
@@ -371,12 +368,16 @@
     try {
       submitResultBtn.disabled = true;
       resetOutputStyle();
-      showOutput("Waiting for submit_result confirmation in your wallet...");
+      showOutput("Waiting for submit_result transaction confirmation...");
       
-      const tx = await contract.submit_result(transcript);
-      showOutput(`Transaction sent! Hash: ${tx.hash}\nWaiting for on-chain confirmation...`);
-      
-      await tx.wait();
+      const hash = await walletClient.writeContract({
+        address: CONTRACT_ADDRESS,
+        functionName: 'submit_result',
+        args: [transcript]
+      });
+
+      showOutput(`Transaction sent! Hash: ${hash}\nWaiting for receipt...`);
+      await client.waitForTransactionReceipt({ hash });
       
       outputBox.className = 'status-box success';
       showOutput("Result submitted successfully! Step 3 unlocked — run the AI evaluation.");
@@ -385,7 +386,7 @@
       
     } catch (e) {
       resetOutputStyle();
-      showOutput("Submit Result failed: " + (e.reason || e.message), true);
+      showOutput("Submit Result failed: " + (e.shortMessage || e.message), true);
       submitResultBtn.disabled = false;
     }
   });
@@ -395,24 +396,37 @@
     try {
       evaluateBtn.disabled = true;
       resetOutputStyle();
-      showOutput("Waiting for evaluate_and_release confirmation in your wallet...");
+      showOutput("Waiting for evaluate_and_release transaction confirmation...");
       
-      const tx = await contract.evaluate_and_release();
-      showOutput(`Transaction sent! Hash: ${tx.hash}\nAI Validator committee is working...`);
+      const hash = await walletClient.writeContract({
+        address: CONTRACT_ADDRESS,
+        functionName: 'evaluate_and_release',
+        args: []
+      });
+
+      showOutput(`Transaction sent! Hash: ${hash}\nAI Validator committee is working...`);
+      await client.waitForTransactionReceipt({ hash });
       
-      await tx.wait();
-      
-      // Start polling for final status
       let attempts = 0;
-      const maxAttempts = 12; // 12 × 5s = 60 seconds
+      const maxAttempts = 12;
       showOutput("Awaiting AI consensus result...\n(Status: Pending)");
       
       const pollStatus = async () => {
         attempts++;
         try {
-          const status = await contract.get_status();
-          const reason = await contract.get_verdict_reason();
-          const s = (status || '').toLowerCase();
+          const status = await client.readContract({
+            address: CONTRACT_ADDRESS,
+            functionName: 'get_status',
+            args: []
+          });
+
+          const reason = await client.readContract({
+            address: CONTRACT_ADDRESS,
+            functionName: 'get_verdict_reason',
+            args: []
+          });
+
+          const s = String(status || '').toLowerCase();
           
           if (s === 'approved') {
             outputBox.className = 'status-box success';
@@ -428,7 +442,6 @@
             showOutput(`Awaiting AI consensus result...\nStatus: ${status || 'Pending'}\n(Attempt ${attempts}/${maxAttempts})`);
           }
         } catch (err) {
-          // CALL_EXCEPTION often means state hasn't updated yet — keep polling
           console.log(`Attempt ${attempts}: state not ready yet.`);
           showOutput(`Awaiting AI consensus result...\n(Attempt ${attempts}/${maxAttempts})`);
         }
@@ -438,7 +451,7 @@
         } else {
           outputBox.style.borderColor = 'var(--cyan)';
           outputBox.className = 'status-box';
-          showOutput("Transaction confirmed, but RPC hasn't returned the final verdict yet.\n\nPlease check Studio Next Explorer for the final APPROVED / REJECTED status.");
+          showOutput("Transaction confirmed, but RPC hasn't returned the final verdict yet.\n\nPlease check Studio Next Explorer for final status.");
         }
       };
       
@@ -446,11 +459,10 @@
 
     } catch (e) {
       resetOutputStyle();
-      showOutput("Evaluate & Release failed: " + (e.reason || e.message), true);
+      showOutput("Evaluate & Release failed: " + (e.shortMessage || e.message), true);
       evaluateBtn.disabled = false;
     }
   });
-
 </script>
 </body>
 </html>
